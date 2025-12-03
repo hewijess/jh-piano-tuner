@@ -1,6 +1,17 @@
 // tuner.js
 // JH Piano Tuner - ScriptProcessor-based version for better mobile compatibility
 
+// Register service worker for PWA / offline support
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .catch(err => {
+        console.error("Service worker registration failed:", err);
+      });
+  });
+}
+
 let audioContext = null;
 let scriptNode = null;
 let running = false;
