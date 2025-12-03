@@ -1,15 +1,13 @@
 // tuner.js
-// Minimal open-source web tuner core
-// You can release this under the MIT license if you publish it.
+// JH Piano Tuner - improved version with input level + YIN pitch detection
 
-// Global state
 let audioContext = null;
 let analyser = null;
 let dataBuffer = null;
 let running = false;
 
-const MIN_FREQUENCY = 27.5; // A0
-const MAX_FREQUENCY = 4186.0; // C8
+const MIN_FREQUENCY = 27.5;  // A0
+const MAX_FREQUENCY = 4186;  // C8
 const MAX_DETUNE_CENTS = 50; // +/- 50 cents scale for needle
 
 // UI elements
@@ -18,6 +16,7 @@ const frequencyEl = document.getElementById("frequency");
 const centsEl = document.getElementById("cents");
 const needleEl = document.getElementById("needle");
 const statusEl = document.getElementById("status-text");
+const levelEl = document.getElementById("level"); // may be null if not in HTML
 const startButton = document.getElementById("start-button");
 
 startButton.addEventListener("click", startTuner);
@@ -41,16 +40,17 @@ async function startTuner() {
 
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-    // On some devices (especially mobile), AudioContext starts suspended
     if (audioContext.state === "suspended") {
       await audioContext.resume();
     }
 
     const source = audioContext.createMediaStreamSource(stream);
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
 
+    // 2048 is a good compromise between resolution and CPU
+    analyser.fftSize = 2048;
     dataBuffer = new Float32Array(analyser.fftSize);
+
     source.connect(analyser);
 
     running = true;
@@ -70,7 +70,19 @@ function updateTuner() {
   if (!running || !analyser || !audioContext) return;
 
   analyser.getFloatTimeDomainData(dataBuffer);
-  const freq = autoCorrelatePitch(dataBuffer, audioContext.sampleRate);
+
+  const rms = computeRMS(dataBuffer);
+  if (levelEl) {
+    levelEl.textContent = rms.toFixed(3);
+  }
+
+  let freq = -1;
+
+  // Only try to detect pitch if the signal is at least a bit above noise.
+  // This threshold is intentionally low so normal piano levels work.
+  if (rms > 0.002) {
+    freq = yinPitch(dataBuffer, audioContext.sampleRate);
+  }
 
   if (
     freq > 0 &&
@@ -87,66 +99,91 @@ function updateTuner() {
     updateNeedle(cents);
     statusEl.textContent = "Try to bring the needle to 0 cents.";
   } else {
-    // No stable pitch detected
     noteNameEl.textContent = "--";
     frequencyEl.textContent = "0.0";
     centsEl.textContent = "0.0";
     updateNeedle(0);
-    statusEl.textContent = "Play a clear, single note and let it ring.";
+
+    if (rms < 0.002) {
+      statusEl.textContent = "Input is very quiet. Move device closer or play louder.";
+    } else {
+      statusEl.textContent = "Listening… play a clear, single note and let it ring.";
+    }
   }
 
   requestAnimationFrame(updateTuner);
 }
 
-/**
- * Basic autocorrelation pitch detection.
- * Returns frequency in Hz, or -1 if no good match.
- */
-function autoCorrelatePitch(buf, sampleRate) {
-  const SIZE = buf.length;
-  let rms = 0;
-
-  for (let i = 0; i < SIZE; i++) {
-    const val = buf[i];
-    rms += val * val;
+function computeRMS(buf) {
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const v = buf[i];
+    sum += v * v;
   }
-  rms = Math.sqrt(rms / SIZE);
+  return Math.sqrt(sum / buf.length);
+}
 
-  if (rms < 0.01) {
-    // Signal too weak
+/**
+ * YIN pitch detection algorithm (simplified).
+ * Returns frequency in Hz, or -1 if not found.
+ */
+function yinPitch(buffer, sampleRate) {
+  const threshold = 0.15;
+  const tauMax = Math.floor(buffer.length / 2);
+
+  const yinBuffer = new Float32Array(tauMax);
+  let runningSum = 0;
+
+  // Step 1: Difference function
+  for (let tau = 1; tau < tauMax; tau++) {
+    let sum = 0;
+    for (let i = 0; i < tauMax; i++) {
+      const delta = buffer[i] - buffer[i + tau];
+      sum += delta * delta;
+    }
+    yinBuffer[tau] = sum;
+  }
+
+  // Step 2: Cumulative mean normalized difference
+  yinBuffer[0] = 1;
+  for (let tau = 1; tau < tauMax; tau++) {
+    runningSum += yinBuffer[tau];
+    yinBuffer[tau] *= tau / runningSum;
+  }
+
+  // Step 3: Absolute threshold
+  let tauEstimate = -1;
+  for (let tau = 2; tau < tauMax; tau++) {
+    if (yinBuffer[tau] < threshold) {
+      while (tau + 1 < tauMax && yinBuffer[tau + 1] < yinBuffer[tau]) {
+        tau++;
+      }
+      tauEstimate = tau;
+      break;
+    }
+  }
+
+  if (tauEstimate === -1) {
     return -1;
   }
 
-  const MAX_SHIFT = SIZE / 2;
-  let bestOffset = -1;
-  let bestCorrelation = 0;
-  let previousCorrelation = 1;
+  // Step 4: Parabolic interpolation for better tau
+  const x0 = tauEstimate < 1 ? tauEstimate : tauEstimate - 1;
+  const x2 = tauEstimate + 1 < tauMax ? tauEstimate + 1 : tauEstimate;
 
-  for (let offset = 1; offset < MAX_SHIFT; offset++) {
-    let correlation = 0;
+  const s0 = yinBuffer[x0];
+  const s1 = yinBuffer[tauEstimate];
+  const s2 = yinBuffer[x2];
 
-    for (let i = 0; i < MAX_SHIFT; i++) {
-      correlation += buf[i] * buf[i + offset];
-    }
+  const betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
 
-    correlation = correlation / MAX_SHIFT;
+  const frequency = sampleRate / betterTau;
 
-    if (correlation > 0.9 && correlation > previousCorrelation) {
-      if (correlation > bestCorrelation) {
-        bestCorrelation = correlation;
-        bestOffset = offset;
-      }
-    }
-
-    previousCorrelation = correlation;
+  if (!Number.isFinite(frequency) || frequency <= 0) {
+    return -1;
   }
 
-  if (bestOffset > 0) {
-    const frequency = sampleRate / bestOffset;
-    return frequency;
-  }
-
-  return -1;
+  return frequency;
 }
 
 /**
@@ -154,7 +191,6 @@ function autoCorrelatePitch(buf, sampleRate) {
  */
 function getNoteInfo(freq) {
   const A4 = 440;
-  // MIDI note number
   const noteNumber = 12 * (Math.log(freq / A4) / Math.log(2)) + 69;
   const nearestNote = Math.round(noteNumber);
 
@@ -167,18 +203,8 @@ function getNoteInfo(freq) {
 
 function midiNoteToName(midi) {
   const noteNames = [
-    "C",
-    "C♯",
-    "D",
-    "D♯",
-    "E",
-    "F",
-    "F♯",
-    "G",
-    "G♯",
-    "A",
-    "A♯",
-    "B"
+    "C", "C♯", "D", "D♯", "E", "F",
+    "F♯", "G", "G♯", "A", "A♯", "B"
   ];
   const note = noteNames[midi % 12];
   const octave = Math.floor(midi / 12) - 1;
@@ -190,7 +216,6 @@ function midiNoteToName(midi) {
  */
 function updateNeedle(cents) {
   const clamped = Math.max(-MAX_DETUNE_CENTS, Math.min(MAX_DETUNE_CENTS, cents));
-  // Map -50..+50 cents to -25..+25 degrees
   const angle = (clamped / MAX_DETUNE_CENTS) * 25;
   needleEl.style.transform = `translateX(-50%) rotate(${angle}deg)`;
 }
