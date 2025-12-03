@@ -47,11 +47,17 @@ async function startTuner() {
     const source = audioContext.createMediaStreamSource(stream);
     analyser = audioContext.createAnalyser();
 
-    // 2048 is a good compromise between resolution and CPU
     analyser.fftSize = 2048;
     dataBuffer = new Float32Array(analyser.fftSize);
 
+    // 🔊 Create muted gain node so the graph is "pulled"
+    const silentGain = audioContext.createGain();
+    silentGain.gain.value = 0;
+
+    // mic -> analyser -> silentGain -> destination
     source.connect(analyser);
+    analyser.connect(silentGain);
+    silentGain.connect(audioContext.destination);
 
     running = true;
     startButton.textContent = "Microphone Running";
@@ -66,8 +72,13 @@ async function startTuner() {
   }
 }
 
+
 function updateTuner() {
   if (!running || !analyser || !audioContext) return;
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
 
   analyser.getFloatTimeDomainData(dataBuffer);
 
