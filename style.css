@@ -107,23 +107,50 @@ header p {
   position: relative;
   height: 120px;
   border-radius: 12px;
-  background: radial-gradient(circle at 50% 0%, var(--accent-soft), #1b1b1b);
   overflow: hidden;
   border: 1px solid #222;
+  background: #111;
 }
 
-#needle {
+/* Wide sliding background that we move left/right */
+#tuning-bg {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
+  top: 0;
+  left: 0;
+  width: 300%;          /* make it wider than the container so sliding is visible */
   height: 100%;
-  background: var(--accent);
-  transform-origin: 50% 90%;
-  transform: translateX(-50%) rotate(0deg);
-  border-radius: 999px;
-  box-shadow: 0 0 12px var(--accent);
+  /* horizontal “ruler” stripes */
+  background:
+    radial-gradient(circle at 50% 0%, var(--accent-soft), #1b1b1b),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.06) 0,
+      rgba(255, 255, 255, 0.06) 4px,
+      transparent 4px,
+      transparent 12px
+    );
+  transform: translateX(-50%);  /* start centered */
+  transition: transform 0.06s linear; /* smooth motion */
 }
+
+/* Fixed center line (0 cents) */
+.center-line {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3px;
+  height: 100%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  border-radius: 999px;
+}
+
+/* (Optional) old needle: hide if still in HTML */
+#needle {
+  display: none;
+}
+
 
 .status {
   text-align: center;

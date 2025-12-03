@@ -115,7 +115,7 @@ const MAX_DETUNE_CENTS = 50; // +/- 50 cents for the needle
 const noteNameEl = document.getElementById("note-name");
 const frequencyEl = document.getElementById("frequency");
 const centsEl = document.getElementById("cents");
-const needleEl = document.getElementById("needle");
+const tuningBgEl = document.getElementById("tuning-bg");
 const statusEl = document.getElementById("status-text");
 const levelEl = document.getElementById("level");
 const pianoKeyEl = document.getElementById("piano-key");
@@ -359,10 +359,18 @@ function midiNoteToName(midi) {
 }
 
 /**
- * Move the needle based on cents (clamped to +/- MAX_DETUNE_CENTS).
+ * Move the sliding background based on cents (clamped to +/- MAX_DETUNE_CENTS).
+ * Negative cents: slide one way, positive cents: slide the other.
  */
 function updateNeedle(cents) {
+  if (!tuningBgEl) return;
+
   const clamped = Math.max(-MAX_DETUNE_CENTS, Math.min(MAX_DETUNE_CENTS, cents));
-  const angle = (clamped / MAX_DETUNE_CENTS) * 25;
-  needleEl.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+  // Map -MAX..+MAX cents to a shift range (in percent).
+  // With width 300%, translating +/- 20% gives a nice visible slide.
+  const maxShiftPercent = 20;
+  const shift = (clamped / MAX_DETUNE_CENTS) * maxShiftPercent;
+
+  // Start centered at -50% (middle of 300%), then add our shift
+  tuningBgEl.style.transform = `translateX(${shift - 50}%)`;
 }
