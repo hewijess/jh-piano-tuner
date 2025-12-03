@@ -132,7 +132,6 @@ header p {
 }
 
 #update-button {
-  display: block;
   margin: 0.75rem auto 0;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
@@ -141,6 +140,10 @@ header p {
   background: #333;
   color: #eee;
   cursor: pointer;
+}
+
+#update-button[hidden] {
+  display: none;
 }
 
 #update-button:hover {
