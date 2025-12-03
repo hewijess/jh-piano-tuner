@@ -131,6 +131,22 @@ header p {
   color: #aaa;
 }
 
+#update-button {
+  display: block;
+  margin: 0.75rem auto 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: #333;
+  color: #eee;
+  cursor: pointer;
+}
+
+#update-button:hover {
+  background: #444;
+}
+
 footer {
   text-align: center;
   font-size: 0.75rem;

@@ -7,20 +7,26 @@ const URLS_TO_CACHE = [
   "/jh-piano-tuner/style.css",
   "/jh-piano-tuner/tuner.js",
   "/jh-piano-tuner/manifest.webmanifest"
-  // You can add icon files here too when you have them, e.g.:
+  // Add icons when you have them:
   // "/jh-piano-tuner/icons/icon-192.png",
   // "/jh-piano-tuner/icons/icon-512.png"
 ];
 
+// Install: pre-cache core assets
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(URLS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
   );
 });
 
-// Activate: clean up old caches if you bump CACHE_NAME
+// Handle "update now" message from the page
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Activate: clean old caches and take control
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -31,24 +37,24 @@ self.addEventListener("activate", event => {
       )
     )
   );
+
+  // Take control of all open clients immediately
+  return self.clients.claim();
 });
 
-// Fetch: cache-first strategy for our static assets
+// Fetch: cache-first strategy
 self.addEventListener("fetch", event => {
   const request = event.request;
 
-  // Only handle GET
   if (request.method !== "GET") return;
 
   event.respondWith(
     caches.match(request).then(response => {
       if (response) {
-        return response; // Cached version
+        return response;
       }
 
-      // Fallback to network and cache it
       return fetch(request).then(networkResponse => {
-        // Ignore non-OK or cross-origin that can't be cached
         if (
           !networkResponse ||
           networkResponse.status !== 200 ||

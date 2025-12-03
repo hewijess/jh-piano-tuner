@@ -1,15 +1,56 @@
 // tuner.js
 // JH Piano Tuner - ScriptProcessor-based version for better mobile compatibility
 
-// Register service worker for PWA / offline support
+// Register service worker and wire up "Update app" button
+const updateButton = document.getElementById("update-button");
+let waitingWorker = null;
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("./sw.js")
+      .then(reg => {
+        // If there's already a waiting worker when we load (new version ready)
+        if (reg.waiting) {
+          showUpdateButton(reg.waiting);
+        }
+
+        // Listen for future updates
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+
+          newWorker.addEventListener("statechange", () => {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              // New version installed, show update button
+              showUpdateButton(newWorker);
+            }
+          });
+        });
+      })
       .catch(err => {
         console.error("Service worker registration failed:", err);
       });
+
+    // Reload the page when the new service worker takes control
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
   });
+}
+
+function showUpdateButton(worker) {
+  waitingWorker = worker;
+  if (!updateButton) return;
+
+  updateButton.hidden = false;
+  updateButton.onclick = () => {
+    if (!waitingWorker) return;
+    waitingWorker.postMessage({ type: "SKIP_WAITING" });
+  };
 }
 
 let audioContext = null;
