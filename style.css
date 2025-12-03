@@ -198,6 +198,100 @@ header p {
   color: #ccc;
 }
 
+/* Tick mark container (fixed over the background) */
+.tick-marks {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  width: 100%;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+/* Base style for each tick */
+.tick {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255,255,255,0.25);
+  border-radius: 2px;
+}
+
+/* Slightly brighter for major ticks */
+.tick.t5, .tick.t10, .tick.t20, .tick.t30 {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Positions (percent of container width)  
+   MAX_DETUNE_CENTS = 50 → positions are (cents/50 * 50%) */
+
+ /* +1 cent  */
+.tick.t1  { left: calc(50% + (1/50*50%)); }
+
+/* +5 */
+.tick.t5  { left: calc(50% + (5/50*50%)); }
+
+/* +10 */
+.tick.t10 { left: calc(50% + (10/50*50%)); }
+
+/* +20 */
+.tick.t20 { left: calc(50% + (20/50*50%)); }
+
+/* +30 */
+.tick.t30 { left: calc(50% + (30/50*50%)); }
+
+/* Negative side = mirror positions */
+
+/* -1 */
+.tick.t1.neg  { left: calc(50% - (1/50*50%)); }
+
+/* -5 */
+.tick.t5.neg  { left: calc(50% - (5/50*50%)); }
+
+/* -10 */
+.tick.t10.neg { left: calc(50% - (10/50*50%)); }
+
+/* -20 */
+.tick.t20.neg { left: calc(50% - (20/50*50%)); }
+
+/* -30 */
+.tick.t30.neg { left: calc(50% - (30/50*50%)); }
+
+/* Label styling */
+.tick-label {
+  position: absolute;
+  bottom: 4px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Position labels exactly under their corresponding ticks */
+.t1-label  { left: calc(50% + (1/50*50%)); }
+.t5-label  { left: calc(50% + (5/50*50%)); }
+.t10-label { left: calc(50% + (10/50*50%)); }
+.t20-label { left: calc(50% + (20/50*50%)); }
+.t30-label { left: calc(50% + (30/50*50%)); }
+
+.t1-label.neg  { left: calc(50% - (1/50*50%)); }
+.t5-label.neg  { left: calc(50% - (5/50*50%)); }
+.t10-label.neg { left: calc(50% - (10/50*50%)); }
+.t20-label.neg { left: calc(50% - (20/50*50%)); }
+.t30-label.neg { left: calc(50% - (30/50*50%)); }
+
+/* Optionally bold major ticks */
+.t10-label,
+.t20-label,
+.t30-label {
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+}
+
+
 footer {
   text-align: center;
   font-size: 0.75rem;
