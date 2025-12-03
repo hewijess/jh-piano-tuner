@@ -1,14 +1,13 @@
 // tuner.js
-// JH Piano Tuner - improved version with input level + YIN pitch detection
+// JH Piano Tuner - ScriptProcessor-based version for better mobile compatibility
 
 let audioContext = null;
-let analyser = null;
-let dataBuffer = null;
+let scriptNode = null;
 let running = false;
 
 const MIN_FREQUENCY = 27.5;  // A0
 const MAX_FREQUENCY = 4186;  // C8
-const MAX_DETUNE_CENTS = 50; // +/- 50 cents scale for needle
+const MAX_DETUNE_CENTS = 50; // +/- 50 cents for the needle
 
 // UI elements
 const noteNameEl = document.getElementById("note-name");
@@ -16,7 +15,7 @@ const frequencyEl = document.getElementById("frequency");
 const centsEl = document.getElementById("cents");
 const needleEl = document.getElementById("needle");
 const statusEl = document.getElementById("status-text");
-const levelEl = document.getElementById("level"); // may be null if not in HTML
+const levelEl = document.getElementById("level");
 const startButton = document.getElementById("start-button");
 
 startButton.addEventListener("click", startTuner);
@@ -45,26 +44,26 @@ async function startTuner() {
     }
 
     const source = audioContext.createMediaStreamSource(stream);
-    analyser = audioContext.createAnalyser();
 
-    analyser.fftSize = 2048;
-    dataBuffer = new Float32Array(analyser.fftSize);
+    // ScriptProcessorNode: deprecated but still widely supported (incl. iOS Safari)
+    const bufferSize = 2048;
+    scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
-    // 🔊 Create muted gain node so the graph is "pulled"
+    // Silent gain so we don't hear ourselves
     const silentGain = audioContext.createGain();
     silentGain.gain.value = 0;
 
-    // mic -> analyser -> silentGain -> destination
-    source.connect(analyser);
-    analyser.connect(silentGain);
+    // Connect: mic -> scriptNode -> silentGain -> destination
+    source.connect(scriptNode);
+    scriptNode.connect(silentGain);
     silentGain.connect(audioContext.destination);
+
+    scriptNode.onaudioprocess = handleAudioProcess;
 
     running = true;
     startButton.textContent = "Microphone Running";
     startButton.disabled = true;
     statusEl.textContent = "Listening… play a single note on your piano.";
-
-    updateTuner();
   } catch (err) {
     console.error(err);
     statusEl.textContent =
@@ -72,27 +71,23 @@ async function startTuner() {
   }
 }
 
+function handleAudioProcess(event) {
+  if (!audioContext) return;
 
-function updateTuner() {
-  if (!running || !analyser || !audioContext) return;
+  const inputBuffer = event.inputBuffer;
+  const inputData = inputBuffer.getChannelData(0); // mono
 
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
-  }
-
-  analyser.getFloatTimeDomainData(dataBuffer);
-
-  const rms = computeRMS(dataBuffer);
+  // Compute RMS level
+  const rms = computeRMS(inputData);
   if (levelEl) {
     levelEl.textContent = rms.toFixed(3);
   }
 
   let freq = -1;
 
-  // Only try to detect pitch if the signal is at least a bit above noise.
-  // This threshold is intentionally low so normal piano levels work.
+  // Only attempt pitch detection if there's some signal
   if (rms > 0.002) {
-    freq = yinPitch(dataBuffer, audioContext.sampleRate);
+    freq = yinPitch(inputData, audioContext.sampleRate);
   }
 
   if (
@@ -122,7 +117,12 @@ function updateTuner() {
     }
   }
 
-  requestAnimationFrame(updateTuner);
+  // Zero the output so we don't feed anything to speakers
+  const outputBuffer = event.outputBuffer;
+  for (let ch = 0; ch < outputBuffer.numberOfChannels; ch++) {
+    const outputData = outputBuffer.getChannelData(ch);
+    outputData.fill(0);
+  }
 }
 
 function computeRMS(buf) {
@@ -178,7 +178,7 @@ function yinPitch(buffer, sampleRate) {
     return -1;
   }
 
-  // Step 4: Parabolic interpolation for better tau
+  // Step 4: Parabolic interpolation
   const x0 = tauEstimate < 1 ? tauEstimate : tauEstimate - 1;
   const x2 = tauEstimate + 1 < tauMax ? tauEstimate + 1 : tauEstimate;
 
@@ -187,7 +187,6 @@ function yinPitch(buffer, sampleRate) {
   const s2 = yinBuffer[x2];
 
   const betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
-
   const frequency = sampleRate / betterTau;
 
   if (!Number.isFinite(frequency) || frequency <= 0) {
