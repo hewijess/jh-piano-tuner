@@ -1,6 +1,6 @@
 // sw.js - simple cache-first service worker for JH Piano Tuner
 
-const CACHE_NAME = "jh-piano-tuner-v1";
+const CACHE_NAME = "jh-piano-tuner-v2";
 const URLS_TO_CACHE = [
   "/jh-piano-tuner/",
   "/jh-piano-tuner/index.html",
