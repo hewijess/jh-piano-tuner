@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Open Piano Tuner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="description" content="Open-source web-based tuner that runs on phones, tablets, and desktops." />
+  <meta name="theme-color" content="#111111" />
+
+  <!-- iOS: make it feel app-like when added to Home Screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Open Piano Tuner</h1>
+      <p>Web-based tuner that runs on iPad, phone, and desktop.</p>
+    </header>
+
+    <main>
+      <button id="start-button">Start Microphone</button>
+
+      <section class="readout">
+        <div class="note-display">
+          <span id="note-name">--</span>
+        </div>
+        <div class="freq-display">
+          <span id="frequency">0.0</span> Hz
+        </div>
+        <div class="cents-display">
+          <span id="cents">0.0</span> cents
+        </div>
+      </section>
+
+      <section class="needle-section">
+        <div class="needle-scale">
+          <span class="scale-label">-50</span>
+          <span class="scale-label center">0</span>
+          <span class="scale-label">+50</span>
+        </div>
+        <div class="needle-container">
+          <div id="needle"></div>
+        </div>
+      </section>
+
+      <section class="status">
+        <p id="status-text">Tap “Start Microphone” and play a single note.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Open-source starter tuner. Extend it with piano-specific features like stretch tuning and
+        inharmonicity measurement.
+      </p>
+    </footer>
+  </div>
+
+  <script src="tuner.js"></script>
+</body>
+</html>
