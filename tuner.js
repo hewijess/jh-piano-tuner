@@ -118,7 +118,12 @@ const centsEl = document.getElementById("cents");
 const needleEl = document.getElementById("needle");
 const statusEl = document.getElementById("status-text");
 const levelEl = document.getElementById("level");
+const pianoKeyEl = document.getElementById("piano-key");
 const startButton = document.getElementById("start-button");
+
+// Piano range (standard 88-key piano: A0 to C8)
+const MIN_MIDI_PIANO = 21;  // A0
+const MAX_MIDI_PIANO = 108; // C8
 
 startButton.addEventListener("click", startTuner);
 
@@ -193,34 +198,54 @@ function handleAudioProcess(event) {
     freq = yinPitch(inputData, audioContext.sampleRate);
   }
 
-  if (
-    freq > 0 &&
-    Number.isFinite(freq) &&
-    freq >= MIN_FREQUENCY &&
-    freq <= MAX_FREQUENCY
-  ) {
-    const { noteName, targetFreq, cents } = getNoteInfo(freq);
+if (
+  freq > 0 &&
+  Number.isFinite(freq) &&
+  freq >= MIN_FREQUENCY &&
+  freq <= MAX_FREQUENCY
+) {
+  const { noteName, targetFreq, cents, keyNumber } = getNoteInfo(freq);
 
+  // Only accept notes that are on a standard 88-key piano
+  if (keyNumber !== null) {
     noteNameEl.textContent = noteName;
     frequencyEl.textContent = freq.toFixed(1);
     centsEl.textContent = cents.toFixed(1);
 
+    if (pianoKeyEl) {
+      pianoKeyEl.textContent = keyNumber.toString();
+    }
+
     updateNeedle(cents);
-    statusEl.textContent = "Try to bring the needle to 0 cents.";
+    statusEl.textContent = "Piano note detected. Try to bring the needle to 0 cents.";
   } else {
+    // Detected frequency is outside piano note range (or a bad harmonic)
     noteNameEl.textContent = "--";
     frequencyEl.textContent = "0.0";
     centsEl.textContent = "0.0";
-    updateNeedle(0);
-
-    if (rms < rmsThreshold) {
-      statusEl.textContent =
-        "Input is below sensitivity. Move device closer, play louder, or increase sensitivity.";
-    } else {
-      statusEl.textContent =
-        "Listening… play a clear, single note and let it ring.";
+    if (pianoKeyEl) {
+      pianoKeyEl.textContent = "--";
     }
+    updateNeedle(0);
+    statusEl.textContent = "Sound detected, but not within the 88-key piano range.";
   }
+} else {
+  noteNameEl.textContent = "--";
+  frequencyEl.textContent = "0.0";
+  centsEl.textContent = "0.0";
+  if (pianoKeyEl) {
+    pianoKeyEl.textContent = "--";
+  }
+  updateNeedle(0);
+
+  if (rms < rmsThreshold) {
+    statusEl.textContent =
+      "Input is below sensitivity. Move device closer, play louder, or increase sensitivity.";
+  } else {
+    statusEl.textContent =
+      "Listening… play a clear, single piano note and let it ring.";
+  }
+}
 
   // Zero the output so we don't feed anything to speakers
   const outputBuffer = event.outputBuffer;
@@ -305,7 +330,7 @@ function yinPitch(buffer, sampleRate) {
  * Map frequency to nearest equal-tempered note and cents offset.
  */
 function getNoteInfo(freq) {
-  const A4 = 440;
+  const A4 = 440; // A4 reference; later we can make this configurable
   const noteNumber = 12 * (Math.log(freq / A4) / Math.log(2)) + 69;
   const nearestNote = Math.round(noteNumber);
 
@@ -313,7 +338,14 @@ function getNoteInfo(freq) {
   const cents = (1200 * Math.log(freq / targetFreq)) / Math.log(2);
 
   const noteName = midiNoteToName(nearestNote);
-  return { noteName, targetFreq, cents };
+
+  // Map MIDI to piano key (1–88). A0 (MIDI 21) => key 1
+  let keyNumber = null;
+  if (nearestNote >= MIN_MIDI_PIANO && nearestNote <= MAX_MIDI_PIANO) {
+    keyNumber = nearestNote - (MIN_MIDI_PIANO - 1);
+  }
+
+  return { noteName, targetFreq, cents, keyNumber };
 }
 
 function midiNoteToName(midi) {
