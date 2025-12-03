@@ -147,6 +147,22 @@ header p {
   background: #444;
 }
 
+.sensitivity {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.sensitivity label {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+#sensitivity-slider {
+  width: 100%;
+}
+
+
 footer {
   text-align: center;
   font-size: 0.75rem;

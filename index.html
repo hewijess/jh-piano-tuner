@@ -2,31 +2,31 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <title>JH Piano Tuner</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <title>JH Piano Tuner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <meta name="description" content="Open-source web-based tuner that runs on phones, tablets, and desktops." />
-  <meta name="theme-color" content="#111111" />
+    <meta name="description" content="Open-source web-based tuner that runs on phones, tablets, and desktops." />
+    <meta name="theme-color" content="#111111" />
 
-  <!-- PWA manifest -->
-  <link rel="manifest" href="manifest.webmanifest" />
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.webmanifest" />
 
-  <!-- iOS: make it feel app-like when added to Home Screen -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <!-- Optional: iOS icon (can reuse 192px one) -->
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <!-- iOS: make it feel app-like when added to Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Optional: iOS icon (can reuse 192px one) -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
-  <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css" />
 </head>
 
 
 <body>
     <div class="app">
         <header>
-            <h1>Open Piano Tuner 0.4 Update Button</h1>
+            <h1>Open Piano Tuner 0.5 Sensitivity Slider</h1>
             <p>Web-based tuner that runs on iPad, phone, and desktop.</p>
         </header>
 
@@ -64,7 +64,20 @@
                 <p id="status-text">Tap “Start Microphone” and play a single note.</p>
             </section>
 
+            <div class="level-display">
+                Input level: <span id="level">0.000</span>
+            </div>
+
+            <section class="sensitivity">
+                <label for="sensitivity-slider">
+                    Sensitivity:
+                    <span id="sensitivity-label">Medium</span>
+                </label>
+                <input id="sensitivity-slider" type="range" min="1" max="100" value="70" />
+            </section>
+
             <button id="update-button" hidden>Update app</button>
+
 
         </main>
 

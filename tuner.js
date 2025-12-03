@@ -1,7 +1,9 @@
 // tuner.js
-// JH Piano Tuner - ScriptProcessor-based version for better mobile compatibility
+// JH Piano Tuner - PWA + sensitivity + ScriptProcessor + YIN pitch detection
 
-// Register service worker and wire up "Update app" button
+// -----------------------------
+// PWA / Service Worker + Update button
+// -----------------------------
 const updateButton = document.getElementById("update-button");
 let waitingWorker = null;
 
@@ -25,7 +27,7 @@ if ("serviceWorker" in navigator) {
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              // New version installed, show update button
+              // New version installed and in waiting state: show update button
               showUpdateButton(newWorker);
             }
           });
@@ -35,7 +37,7 @@ if ("serviceWorker" in navigator) {
         console.error("Service worker registration failed:", err);
       });
 
-    // Reload the page when the new service worker takes control
+    // Reload the page when the new service worker becomes active
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
     });
@@ -53,6 +55,54 @@ function showUpdateButton(worker) {
   };
 }
 
+// -----------------------------
+// Sensitivity slider wiring
+// -----------------------------
+const sensitivitySlider = document.getElementById("sensitivity-slider");
+const sensitivityLabel = document.getElementById("sensitivity-label");
+
+// 1–100 from the slider (higher = more sensitive)
+let sensitivityValue = 70;
+
+function getRmsThreshold() {
+  // Map slider 1–100 to threshold between:
+  //  - 0.0005  (high sensitivity: detects quieter signals)
+  //  - 0.01    (low sensitivity: ignores quiet noise)
+  const minThresh = 0.0005;
+  const maxThresh = 0.01;
+
+  const t = sensitivityValue / 100; // 0..1
+  // Higher sensitivityValue => closer to minThresh
+  const threshold = maxThresh - t * (maxThresh - minThresh);
+  return threshold;
+}
+
+if (sensitivitySlider) {
+  // Initialize from slider's initial value
+  sensitivityValue = Number(sensitivitySlider.value) || 70;
+  updateSensitivityLabel();
+
+  sensitivitySlider.addEventListener("input", () => {
+    sensitivityValue = Number(sensitivitySlider.value) || 70;
+    updateSensitivityLabel();
+  });
+}
+
+function updateSensitivityLabel() {
+  if (!sensitivityLabel) return;
+
+  if (sensitivityValue >= 80) {
+    sensitivityLabel.textContent = "High";
+  } else if (sensitivityValue <= 30) {
+    sensitivityLabel.textContent = "Low";
+  } else {
+    sensitivityLabel.textContent = "Medium";
+  }
+}
+
+// -----------------------------
+// Tuner core: audio + pitch detection
+// -----------------------------
 let audioContext = null;
 let scriptNode = null;
 let running = false;
@@ -97,7 +147,7 @@ async function startTuner() {
 
     const source = audioContext.createMediaStreamSource(stream);
 
-    // ScriptProcessorNode: deprecated but still widely supported (incl. iOS Safari)
+    // ScriptProcessorNode: deprecated but widely supported (including iOS Safari)
     const bufferSize = 2048;
     scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
@@ -136,9 +186,10 @@ function handleAudioProcess(event) {
   }
 
   let freq = -1;
+  const rmsThreshold = getRmsThreshold();
 
-  // Only attempt pitch detection if there's some signal
-  if (rms > 0.002) {
+  // Only attempt pitch detection if there's some signal above threshold
+  if (rms > rmsThreshold) {
     freq = yinPitch(inputData, audioContext.sampleRate);
   }
 
@@ -162,10 +213,12 @@ function handleAudioProcess(event) {
     centsEl.textContent = "0.0";
     updateNeedle(0);
 
-    if (rms < 0.002) {
-      statusEl.textContent = "Input is very quiet. Move device closer or play louder.";
+    if (rms < rmsThreshold) {
+      statusEl.textContent =
+        "Input is below sensitivity. Move device closer, play louder, or increase sensitivity.";
     } else {
-      statusEl.textContent = "Listening… play a clear, single note and let it ring.";
+      statusEl.textContent =
+        "Listening… play a clear, single note and let it ring.";
     }
   }
 
